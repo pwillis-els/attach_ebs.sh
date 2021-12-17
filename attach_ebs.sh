@@ -206,7 +206,7 @@ _main () {
     fi
 
     # Prepend '/dev/' to MOUNT_DEVICE if missing
-    if ! expr match "$MOUNT_DEVICE" /dev/ >/dev/null ; then
+    if ! expr "$MOUNT_DEVICE" : /dev/ >/dev/null ; then
         MOUNT_DEVICE="/dev/$MOUNT_DEVICE"
     fi
     if [ ! -b "$MOUNT_DEVICE" ] ; then
