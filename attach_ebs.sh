@@ -10,7 +10,8 @@
 
 set -e -u
 
-FS_OPTS="${FS_OPTS:-errors=remount-ro,nofail,noatime,nodiratime}"
+FS_TYPE="${FS_TYPE:-ext4}"
+FS_OPTS="${FS_OPTS:-nofail,noatime,nodiratime}"
 FS_LABEL="${FS_LABEL:-data-vol}"
 EBS_FIND_TIMEOUT="${EBS_FIND_TIMEOUT:-30}"
 EBS_TAG_NAME="${EBS_TAG_NAME:-Name}"
@@ -86,23 +87,24 @@ EOUSAGE
 
 _shutdown () {
     echo "$0: Error: $1" 1>&2
-    if [ "${SHUTDOWN:-1}" = "1" ] ; then
+    if [ "${SHUTDOWN:-0}" = "1" ] ; then
         echo "$0: Shutting down server in 1 minute." 1>&2
         /sbin/shutdown -h +1
     fi
     exit 1
 }
 
-_get_ebsid_tag () {
+_ebsid_tag () {
     # Try 30 times to get the EBS ID of the volume based on its tag:Name
     for i in $(seq 1 "$EBS_FIND_TIMEOUT") ; do
         # Command will output EBS volume ID on success
-        if aws --region "$AWS_REGION" \
+        tmp="$(aws --region "$AWS_REGION" \
             ec2 describe-volumes \
-            --filter "Name=tag:${EBS_TAG_NAME},Values=${EBS_TAG_NAME}" \
-            --query "Volumes[0].{ID:VolumeId}" \
-            --output text
-        then
+            --filter "Name=tag:${EBS_TAG_NAME},Values=${EBS_TAG_VALUE}" \
+            --query "Volumes[?State=='available'] | [0] | VolumeId" \
+            --output text)"
+        if [ -n "$tmp" ] && [ ! "$tmp" = "None" ] && [ ! "$tmp" = "null" ] ; then
+            echo "$tmp"
             return 0
         fi
         sleep 1
@@ -110,24 +112,30 @@ _get_ebsid_tag () {
 }
 
 # Get the state of an EBS ID
-_ebs_state () {
-    ebsid="$1"
-    aws --region "$AWS_REGION" ec2 describe-volumes --filter "Name=volume-id,Values=$ebsid" --query "Volumes[0].{STATE:State}" --output text
+_ebsid_state () {
+    tmp="$(aws --region "$AWS_REGION" \
+        ec2 describe-volumes \
+        --filter "Name=volume-id,Values=$1" \
+        --query "Volumes[0].State" \
+        --output text)"
+    if [ "$tmp" = "None" ] || [ "$tmp" = "null" ] ; then
+        echo "$0: Error: Invalid or missing EBS volume '$1'" 1>&2
+    fi
+    echo "$tmp"
 }
 
 # Wait for an EBS volume to no longer be attached or in-use, then attach it and wait
 # for it to be in-use before proceeding.
 _attach_ebs () {
-    state ebsid
     count=0 tries=30 sleeptime=30
 
-    EBS_VOLUME_ID="${EBS_VOLUME_ID:-$(_get_ebsid_tag)}"
+    EBS_VOLUME_ID="${EBS_VOLUME_ID:-$(_ebsid_tag)}"
     if [ -z "$EBS_VOLUME_ID" ] ; then
         _shutdown "Failed to find EBS volume by tag '${EBS_TAG_NAME:-}:${EBS_TAG_VALUE:-}' or id '${EBS_VOLUME_ID:-}' in $EBS_FIND_TIMEOUT seconds; shutting down"
     fi
 
     while [ $count -lt $tries ] ; do
-        state="$(_ebs_state "$EBS_VOLUME_ID")"
+        state="$(_ebsid_state "$EBS_VOLUME_ID")"
         [ "$state" = "available" ] && break
         echo "$0: Volume $EBS_VOLUME_ID is in state '$state'; waiting for it to become available ..."
         sleep $sleeptime
@@ -236,10 +244,10 @@ _main () {
 ################################################################################
 
 SHOW_HELP=0
-while getopts "t:n:T:m:d:u:V:i:r:F:O:L:p:Shv" args ; do
+while getopts "n:t:T:m:d:u:V:i:r:F:O:L:p:Shv" args ; do
     case $args in
-        t)  EBS_TAG_VALUE="$OPTARG" ;;
         n)  EBS_TAG_NAME="$OPTARG" ;;
+        t)  EBS_TAG_VALUE="$OPTARG" ;;
         T)  EBS_FIND_TIMEOUT="$OPTARG" ;;
         m)  MOUNT_DIR="$OPTARG" ;;
         d)  MOUNT_DEVICE="$OPTARG" ;;
