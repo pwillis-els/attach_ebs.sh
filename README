@@ -1,4 +1,3 @@
-./attach_ebs.sh: Error: you must supply either EBS_TAG_VALUE or EBS_VOLUME_ID
 Usage: ./attach_ebs.sh [OPTIONS]
 v1.1
 
