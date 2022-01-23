@@ -1,0 +1,59 @@
+./attach_ebs.sh: Error: you must supply either EBS_TAG_VALUE or EBS_VOLUME_ID
+Usage: ./attach_ebs.sh [OPTIONS]
+v1.1
+
+Attempts to attach an EBS volume to an EC2 instance (by default, the current
+EC2 instance). Can look for a particular EBS tag:Name, or a specific VOLUME_ID.
+
+First waits for the volume to exist (up to '-T' time). Then waits for the volume
+to be available to attach. Then attaches the volume. Then waits for the volume
+to be attached.
+
+Once the volume is attached:
+
+  If FS_TYPE was passed: looks for filesystem type FS_TYPE on device 
+  MOUNT_DEVICE. If the filesystem is not detected, and '-p' is specified, 
+  creates a partition NAME (pass PARTED_SCRIPT or SFDISK_SCRIPT to customize
+  partition creation). A filesystem is created on the resulting device.
+
+  The DEVICE is mounted to DIRECTORY.
+  If none already exists, an fstab entry is added for the mount.
+  If a USER was passed, the newly mounted directory is 'chown'ed to that user.
+
+
+Options:
+    -i EC2_ID           The AWS EC2 instance ID (detected with EC2 metadata)
+    -r REGION           The AWS region (detected with EC2 metadata)
+    -V VOLUME_ID        Attach VOLUME_ID EBS volume instead of looking for the
+                        volume with the '-t' option below
+    -n NAME             Match an EBS volume with a tag named NAME (default: 'Name')
+    -t VALUE            Match an EBS volume whose tag:NAME value is VALUE
+    -T TIMEOUT          Seconds to try looking for an EBS volume with '-t'
+    -d DEVICE           Mount EBS volume from DEVICE file
+    -m DIRECTORY        Mount EBS volume on DIRECTORY
+    -u USER             Make USER the owner of the newly-mounted DIRECTORY
+    -F TYPE             The filesystem type to create if none exists
+    -O OPTS             The filesystem mount options
+    -L LABEL            The filesystem label name
+    -p PART             Create partition name by concatenating DEVICE and PART
+    -S                  Shutdown the host if the volume cannot be attached
+    -h                  This help menu
+    -v                  Turn on trace/debug mode
+
+Environment variables:
+    EC2_ID              Same as the '-i' EC2_ID
+    AWS_REGION          Same as the '-r' REGION
+    EBS_TAG_NAME        Same as the '-n' NAME
+    EBS_TAG_VALUE       Same as the '-t' VALUE
+    EBS_VOLUME_ID       Same as the '-V' VOLUME_ID
+    EBS_FIND_TIMEOUT    Same as the '-T' TIMEOUT
+    MOUNT_DEVICE        Same as the '-d' DEVICE
+    MOUNT_DIR           Same as the '-m' DIRECTORY
+    MOUNT_USER          Same as the '-u' USER
+    PARTED_SCRIPT       A script to use to create a partition on the volume
+    SFDISK_SCRIPT       A script to use to create a partition on the volume
+    FS_TYPE             Same as the '-F' TYPE
+    FS_OPTS             Same as the '-O' OPTS
+    FS_LABEL            Same as the '-L' LABEL
+    MK_PARTITION        Same as the '-p' PART
+    SHUTDOWN            Same as the '-S' option

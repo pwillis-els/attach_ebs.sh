@@ -18,7 +18,7 @@ EBS_TAG_NAME="${EBS_TAG_NAME:-Name}"
 
 ################################################################################
 
-ATTACH_EBS_VERSION="1.0"
+ATTACH_EBS_VERSION="1.1"
 
 _help () {
     [ $# -gt 0 ] && echo "$0: Error: $*"
